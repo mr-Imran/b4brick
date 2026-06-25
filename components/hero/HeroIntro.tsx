@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ShimmerText } from "@/components/ui/AnimatedText";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -48,7 +47,7 @@ export function HeroIntro({ scrollHintRef }: HeroIntroProps) {
           variants={itemVariants}
           className="font-display text-6xl font-bold tracking-[0.32em] text-white sm:text-7xl md:text-8xl lg:text-9xl"
         >
-          <ShimmerText>BRIK.</ShimmerText>
+          BRIK.
         </motion.h1>
 
         <motion.p

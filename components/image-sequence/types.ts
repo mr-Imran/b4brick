@@ -18,13 +18,18 @@ export interface ImageSequenceHandle {
   setOpacity: (opacity: number) => void;
   /** Draw a specific frame immediately. */
   drawFrame: (index: number) => void;
+  /** Draw blended frames — immediate paint (synced to GSAP ticker). */
+  drawFrameBlend: (position: number) => void;
   /** Resize canvas to match viewport (call on window resize). */
   resize: () => void;
 }
 
 export interface PreloadState {
   isLoading: boolean;
+  /** Bootstrap frames loaded — scroll animation can start. */
   isReady: boolean;
+  /** All frames loaded. */
+  isFullyLoaded: boolean;
   progress: number;
   error: string | null;
 }

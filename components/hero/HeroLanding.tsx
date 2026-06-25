@@ -100,11 +100,20 @@ export function HeroLanding({ isVisible }: HeroLandingProps) {
 
       {/* Scroll hint */}
       <motion.div
-        className="absolute bottom-10 left-1/2 -translate-x-1/2"
+        className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-5"
         initial={{ opacity: 0 }}
         animate={isVisible ? { opacity: 1 } : { opacity: 0 }}
         transition={{ delay: 1.4, duration: 0.8 }}
       >
+        <motion.a
+          href="#durability-lab"
+          className="rounded-full border border-[#ffd28a]/25 bg-[#ffd28a]/8 px-5 py-2 text-[10px] tracking-[0.32em] text-[#ffd28a]/90 uppercase backdrop-blur-sm transition-colors hover:border-[#ffd28a]/45 hover:bg-[#ffd28a]/12"
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          Play Mini-Game
+        </motion.a>
+
         <motion.div
           animate={{ y: [0, 8, 0] }}
           transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}

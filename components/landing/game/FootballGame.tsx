@@ -707,7 +707,7 @@ export function FootballGame() {
   }, [setPhaseSafe]);
 
   return (
-    <div className="glass-strong relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#050505] select-none">
+    <div className="overflow-hidden rounded-[calc(2rem-2px)] bg-[#050505] select-none">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-4 py-3 md:px-6">
         <div className="flex gap-6 md:gap-10">
           <Stat label="Score" value={String(score)} accent />
@@ -804,8 +804,11 @@ export function FootballGame() {
 
         {(phase === "ready" || phase === "roundOver") && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm">
-            <p className="text-xs tracking-[0.4em] text-[#d66a3d] uppercase">Mini-Game</p>
-            <h4 className="font-display mt-3 text-3xl font-bold text-white">
+            <p className="game-feature-badge inline-flex items-center gap-2 rounded-full border border-[#ffd28a]/30 bg-[#ffd28a]/10 px-4 py-1.5 text-[10px] tracking-[0.38em] text-[#ffd28a] uppercase">
+              <span className="game-live-dot h-1.5 w-1.5 rounded-full bg-[#ff5f00]" />
+              Featured Mini-Game
+            </p>
+            <h4 className="font-display mt-5 text-3xl font-bold text-white md:text-4xl">
               {phase === "roundOver" ? "Time!" : "BRIK Strike"}
             </h4>
             {phase === "roundOver" && (

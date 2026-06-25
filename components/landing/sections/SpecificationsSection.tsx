@@ -68,8 +68,8 @@ export function SpecificationsSection() {
             brick that carries the weight of architectural legacy.
           </p>
           <div className="mt-10">
-            <MagneticButton href="#durability-lab" variant="ghost">
-              Play BRIK Strike →
+            <MagneticButton href="#durability-lab" className="btn-glow-animated">
+              Play BRIK Strike
             </MagneticButton>
           </div>
         </ScrollReveal>

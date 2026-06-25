@@ -167,6 +167,67 @@ html {
   animation: brick-float 5s ease-in-out infinite;
 }
 
+.game-spotlight-wrap {
+  position: relative;
+  border-radius: 2rem;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 95, 0, 0.55),
+    rgba(255, 210, 138, 0.35),
+    rgba(180, 58, 40, 0.45),
+    rgba(255, 95, 0, 0.55)
+  );
+  background-size: 300% 300%;
+  animation: game-border-shift 5s ease infinite;
+}
+
+@keyframes game-border-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+    box-shadow:
+      0 0 50px rgba(255, 95, 0, 0.18),
+      0 0 100px rgba(255, 210, 138, 0.08);
+  }
+  50% {
+    background-position: 100% 50%;
+    box-shadow:
+      0 0 80px rgba(255, 95, 0, 0.32),
+      0 0 140px rgba(255, 210, 138, 0.14);
+  }
+}
+
+.game-feature-badge {
+  animation: game-badge-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes game-badge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 210, 138, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 24px 4px rgba(255, 95, 0, 0.2);
+  }
+}
+
+.game-live-dot {
+  animation: game-live-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes game-live-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+
 /* Section divider */
 .section-line {
   height: 1px;

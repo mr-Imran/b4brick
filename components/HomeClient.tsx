@@ -1,13 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { CinematicHero } from "@/components/hero/CinematicHero";
+import { DisplayTimingProvider } from "@/components/display/DisplayTimingProvider";
 import { SmoothScrollProvider } from "@/components/smooth-scroll/SmoothScrollProvider";
-
-const CinematicHero = dynamic(
-  () =>
-    import("@/components/hero/CinematicHero").then((mod) => mod.CinematicHero),
-  { ssr: false },
-);
 
 const LandingPage = dynamic(
   () => import("@/components/landing/LandingPage"),
@@ -19,9 +15,11 @@ const LandingPage = dynamic(
  */
 export function HomeClient() {
   return (
-    <SmoothScrollProvider>
-      <CinematicHero />
-      <LandingPage />
-    </SmoothScrollProvider>
+    <DisplayTimingProvider>
+      <SmoothScrollProvider>
+        <CinematicHero />
+        <LandingPage />
+      </SmoothScrollProvider>
+    </DisplayTimingProvider>
   );
 }

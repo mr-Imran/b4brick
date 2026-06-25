@@ -21,8 +21,8 @@ export default function LandingPage() {
         <HeroSection />
         <ManufacturingSection />
         <ShowcaseSection />
-        <SpecificationsSection />
         <DurabilityGameSection />
+        <SpecificationsSection />
         <WhyBrikSection />
         <ReviewsSection />
         <CtaSection />

@@ -8,9 +8,12 @@ export function drawImageCover(
   width: number,
   height: number,
   backgroundColor = "#0a0a0a",
+  options?: { skipBackground?: boolean },
 ): void {
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, width, height);
+  if (!options?.skipBackground) {
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   if (!image.complete || image.naturalWidth === 0) return;
 

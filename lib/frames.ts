@@ -31,15 +31,52 @@ export function getAllFramePaths(): readonly string[] {
   return ALL_FRAME_PATHS;
 }
 
+/** Frames required before scroll animation can start (~5MB vs full ~29MB). */
+export const BOOTSTRAP_FRAME_COUNT = 20;
+
+/** Max parallel frame downloads — avoids browser connection queue stalls. */
+export const FRAME_LOAD_CONCURRENCY = 10;
+
 /**
- * Maps scroll progress (0–1) to a frame index (0–101).
- * Slight ease-out so frames advance quickly at the start of the story scroll.
+ * Priority load order: early story frames + final frame, then the rest.
  */
-export function progressToFrameIndex(progress: number): number {
-  const clamped = Math.max(0, Math.min(1, progress));
-  const eased = clamped ** 0.82;
-  return Math.round(eased * (FRAME_COUNT - 1));
+export function getFrameLoadOrder(frameCount: number = FRAME_COUNT): number[] {
+  const order: number[] = [];
+  const bootstrap = Math.min(BOOTSTRAP_FRAME_COUNT, frameCount);
+
+  for (let i = 0; i < bootstrap; i++) order.push(i);
+  if (frameCount > 1) order.push(frameCount - 1);
+  for (let i = bootstrap; i < frameCount - 1; i++) order.push(i);
+
+  return order;
 }
 
-/** Pinned scroll distance (px) for the full frame sequence — lower = faster frame advance. */
-export const STORY_SCROLL_DISTANCE = Math.round(36 * FRAME_COUNT);
+/** First N frames to hint in document preload. */
+export const FRAME_PRELOAD_HINTS = 4;
+export const PIXELS_PER_FRAME = 36;
+export const STORY_SCROLL_DISTANCE = PIXELS_PER_FRAME * FRAME_COUNT;
+
+/**
+ * Linear scroll → frame position (GTA VI style: 1:1 film scrub).
+ * Easing belongs on opacity fades, not frame index.
+ */
+export function storyFramePosition(
+  progress: number,
+  frameCount: number = FRAME_COUNT,
+): number {
+  const t = Math.max(0, Math.min(1, progress));
+  return t * (frameCount - 1);
+}
+
+/**
+ * @deprecated Use storyFramePosition + crossfade for smooth playback.
+ */
+export function storyFrameIndex(progress: number, frameCount: number = FRAME_COUNT): number {
+  return Math.round(storyFramePosition(progress, frameCount));
+}
+
+/** Smooth fade curve for end-of-sequence transitions */
+export function easeOutSmooth(t: number, power = 2.2): number {
+  const clamped = Math.max(0, Math.min(1, t));
+  return 1 - (1 - clamped) ** power;
+}

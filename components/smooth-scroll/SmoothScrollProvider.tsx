@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useDisplayTiming } from "@/components/display/DisplayTimingProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -12,19 +13,23 @@ interface SmoothScrollProviderProps {
 }
 
 /**
- * Integrates Lenis smooth scrolling with GSAP ScrollTrigger.
- * Lenis RAF is driven by gsap.ticker for synchronized animation timing.
+ * Lenis + ScrollTrigger, tuned to the detected display refresh rate.
  */
 export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
+  const { timing } = useDisplayTiming();
+  const lenisRef = useRef<Lenis | null>(null);
+
   useEffect(() => {
     const lenis = new Lenis({
-      lerp: 0.08,
+      lerp: timing.lenisLerp,
       smoothWheel: true,
       autoRaf: false,
-      touchMultiplier: 1.5,
+      syncTouch: true,
+      touchMultiplier: 1.15,
+      wheelMultiplier: timing.wheelMultiplier,
     });
+    lenisRef.current = lenis;
 
-    // Proxy native scroll position to Lenis for ScrollTrigger
     ScrollTrigger.scrollerProxy(document.documentElement, {
       scrollTop(value?: number) {
         if (typeof value === "number") {
@@ -47,6 +52,7 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
 
     const tickerCallback = (time: number) => {
       lenis.raf(time * 1000);
+      ScrollTrigger.update();
     };
 
     gsap.ticker.add(tickerCallback);
@@ -66,8 +72,17 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
       window.removeEventListener("resize", onResize);
       ScrollTrigger.scrollerProxy(document.documentElement, {});
       lenis.destroy();
+      lenisRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const lenis = lenisRef.current;
+    if (!lenis) return;
+
+    lenis.options.lerp = timing.lenisLerp;
+    lenis.options.wheelMultiplier = timing.wheelMultiplier;
+  }, [timing.hz, timing.lenisLerp, timing.wheelMultiplier]);
 
   return <>{children}</>;
 }

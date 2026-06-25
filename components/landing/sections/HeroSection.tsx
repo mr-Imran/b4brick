@@ -86,6 +86,9 @@ export function HeroSection() {
             <MagneticButton href="#showcase" className="btn-glow-animated">
               Discover BRIK
             </MagneticButton>
+            <MagneticButton href="#durability-lab" variant="ghost">
+              Play BRIK Strike
+            </MagneticButton>
             <MagneticButton href="#specs" variant="ghost">
               View Specifications
             </MagneticButton>

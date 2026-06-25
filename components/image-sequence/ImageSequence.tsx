@@ -5,17 +5,17 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
 } from "react";
 import { drawImageCover } from "./drawImageCover";
 import type { ImageSequenceHandle, ImageSequenceProps } from "./types";
 
+const MAX_FRAME_CACHE = 48;
+const MAX_DPR = 1.5;
+
 /**
- * Canvas-based image sequence renderer.
- *
- * Renders discrete frames on requestAnimationFrame — no cross-fade between
- * frames. Designed for scroll-driven cinematic sequences with minimal
- * React re-renders (opacity and frame changes are imperative).
+ * Canvas image sequence with LRU cache + crossfade between adjacent frames.
  */
 export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>(
   function ImageSequence(
@@ -25,32 +25,43 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
       frameIndex,
       className,
       opacity = 1,
-      backgroundColor = "#0a0a0a",
+      backgroundColor = "#0c0c0e",
     },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const rafRef = useRef<number>(0);
-    const pendingFrameRef = useRef<number | null>(null);
-    const lastDrawnFrameRef = useRef<number>(-1);
-    const sizeRef = useRef({ width: 0, height: 0, dpr: 1 });
+    const rafRef = useRef(0);
+    const pendingPositionRef = useRef<number | null>(null);
+    const lastPaintedRef = useRef(-1);
+    const sizeRef = useRef({ width: 0, height: 0, dpr: 1, key: "" });
     const opacityRef = useRef(opacity);
+    const frameCacheRef = useRef<Map<number, HTMLCanvasElement>>(new Map());
 
     const getContext = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas) return null;
-      return canvas.getContext("2d", { alpha: false, desynchronized: true });
+      return canvas.getContext("2d", { alpha: false });
     }, []);
 
-    const resize = useCallback(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+    const clearFrameCache = useCallback(() => {
+      frameCacheRef.current.clear();
+      lastPaintedRef.current = -1;
+    }, []);
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const ensureSize = useCallback(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return false;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
       const width = window.innerWidth;
       const height = window.innerHeight;
+      const key = `${width}x${height}@${dpr}`;
 
-      sizeRef.current = { width, height, dpr };
+      if (key === sizeRef.current.key && canvas.width > 0) {
+        return width > 0 && height > 0;
+      }
+
+      sizeRef.current = { width, height, dpr, key };
 
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
@@ -60,54 +71,182 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
       const ctx = getContext();
       if (ctx) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
       }
 
-      // Force redraw after resize
-      lastDrawnFrameRef.current = -1;
-    }, [getContext]);
+      clearFrameCache();
+      return width > 0 && height > 0;
+    }, [clearFrameCache, getContext]);
 
-    const drawFrame = useCallback(
-      (index: number) => {
+    const buildCachedFrame = useCallback(
+      (index: number): HTMLCanvasElement | null => {
+        const image = images[index];
+        if (!image?.complete || image.naturalWidth === 0) return null;
+
+        const { width, height, dpr } = sizeRef.current;
+        if (width < 1 || height < 1) return null;
+
+        const pixelW = Math.floor(width * dpr);
+        const pixelH = Math.floor(height * dpr);
+        if (pixelW < 1 || pixelH < 1) return null;
+
+        const off = document.createElement("canvas");
+        off.width = pixelW;
+        off.height = pixelH;
+
+        const octx = off.getContext("2d", { alpha: false });
+        if (!octx) return null;
+
+        octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawImageCover(octx, image, width, height, backgroundColor);
+
+        const cache = frameCacheRef.current;
+        if (cache.size >= MAX_FRAME_CACHE) {
+          const oldest = cache.keys().next().value;
+          if (oldest !== undefined) cache.delete(oldest);
+        }
+        cache.set(index, off);
+        return off;
+      },
+      [backgroundColor, images],
+    );
+
+    const getCachedFrame = useCallback(
+      (index: number): HTMLCanvasElement | null => {
+        const cache = frameCacheRef.current;
+        const hit = cache.get(index);
+        const { width, dpr } = sizeRef.current;
+        const pixelW = Math.floor(width * dpr);
+
+        if (hit && hit.width === pixelW) {
+          cache.delete(index);
+          cache.set(index, hit);
+          return hit;
+        }
+
+        if (hit) cache.delete(index);
+        return buildCachedFrame(index);
+      },
+      [buildCachedFrame],
+    );
+
+    const resolveLoadedIndex = useCallback(
+      (index: number): number => {
+        const img = images[index];
+        if (img?.complete && img.naturalWidth > 0) return index;
+
+        for (let d = 1; d < frameCount; d++) {
+          const prev = images[index - d];
+          if (prev?.complete && prev.naturalWidth > 0) return index - d;
+          const next = images[index + d];
+          if (next?.complete && next.naturalWidth > 0) return index + d;
+        }
+
+        return index;
+      },
+      [frameCount, images],
+    );
+
+    const blitFrame = useCallback(
+      (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, index: number) => {
+        const resolved = resolveLoadedIndex(index);
+        const cached = getCachedFrame(resolved);
+        if (cached) {
+          ctx.drawImage(cached, 0, 0, canvas.width, canvas.height);
+          return true;
+        }
+        const image = images[resolved];
+        if (!image?.complete || image.naturalWidth === 0) return false;
+        const { width, height } = sizeRef.current;
+        drawImageCover(ctx, image, width, height, backgroundColor);
+        return true;
+      },
+      [backgroundColor, getCachedFrame, images, resolveLoadedIndex],
+    );
+
+    const resize = useCallback(() => {
+      ensureSize();
+    }, [ensureSize]);
+
+    const paintBlend = useCallback(
+      (position: number) => {
+        if (!ensureSize()) return;
+
         const canvas = canvasRef.current;
         const ctx = getContext();
         if (!canvas || !ctx || images.length === 0) return;
 
-        const clamped = Math.max(0, Math.min(frameCount - 1, index));
-        const image = images[clamped];
-        if (!image) return;
+        const max = frameCount - 1;
+        const clamped = Math.max(0, Math.min(max, position));
+        if (Math.abs(clamped - lastPaintedRef.current) < 0.0001) return;
 
         const { width, height } = sizeRef.current;
-        drawImageCover(ctx, image, width, height, backgroundColor);
-        lastDrawnFrameRef.current = clamped;
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 0, width, height);
+
+        const i0 = Math.floor(clamped);
+        const i1 = Math.min(max, i0 + 1);
+        const blend = clamped - i0;
+
+        if (i0 === i1) {
+          blitFrame(ctx, canvas, i0);
+        } else {
+          blitFrame(ctx, canvas, i0);
+          ctx.globalAlpha = blend;
+          blitFrame(ctx, canvas, i1);
+          ctx.globalAlpha = 1;
+        }
+
+        lastPaintedRef.current = clamped;
+
+        if (i0 > 0 && !frameCacheRef.current.has(i0 - 1)) {
+          requestAnimationFrame(() => buildCachedFrame(i0 - 1));
+        }
+        if (i1 < max && !frameCacheRef.current.has(i1 + 1)) {
+          requestAnimationFrame(() => buildCachedFrame(i1 + 1));
+        }
       },
-      [backgroundColor, frameCount, getContext, images],
+      [blitFrame, buildCachedFrame, ensureSize, backgroundColor, frameCount, getContext, images.length],
     );
 
-    const scheduleDraw = useCallback(
-      (index: number) => {
-        pendingFrameRef.current = index;
+    const scheduleBlend = useCallback(
+      (position: number, force = false) => {
+        if (force) {
+          lastPaintedRef.current = -1;
+          paintBlend(position);
+          return;
+        }
 
+        pendingPositionRef.current = position;
         if (rafRef.current) return;
 
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = 0;
-          const frame = pendingFrameRef.current;
-          pendingFrameRef.current = null;
-
-          if (frame !== null && frame !== lastDrawnFrameRef.current) {
-            drawFrame(frame);
-          }
+          const pos = pendingPositionRef.current;
+          pendingPositionRef.current = null;
+          if (pos !== null) paintBlend(pos);
         });
       },
-      [drawFrame],
+      [paintBlend],
+    );
+
+    const drawFrame = useCallback(
+      (index: number) => scheduleBlend(index, true),
+      [scheduleBlend],
+    );
+
+    const drawFrameBlend = useCallback(
+      (position: number) => {
+        paintBlend(position);
+      },
+      [paintBlend],
     );
 
     const setOpacity = useCallback((value: number) => {
       opacityRef.current = value;
       const canvas = canvasRef.current;
-      if (canvas) {
-        canvas.style.opacity = String(value);
-      }
+      if (canvas) canvas.style.opacity = String(value);
     }, []);
 
     useImperativeHandle(
@@ -115,34 +254,35 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
       () => ({
         setOpacity,
         drawFrame,
+        drawFrameBlend,
         resize,
       }),
-      [drawFrame, resize, setOpacity],
+      [drawFrame, drawFrameBlend, resize, setOpacity],
     );
 
-    // Initial sizing
-    useEffect(() => {
-      resize();
+    useLayoutEffect(() => {
       setOpacity(opacityRef.current);
+      ensureSize();
+    }, [ensureSize, setOpacity]);
 
+    useEffect(() => {
       const onResize = () => {
-        resize();
-        if (lastDrawnFrameRef.current >= 0) {
-          drawFrame(lastDrawnFrameRef.current);
+        ensureSize();
+        if (lastPaintedRef.current >= 0) {
+          scheduleBlend(lastPaintedRef.current, true);
         }
       };
 
       window.addEventListener("resize", onResize, { passive: true });
       return () => window.removeEventListener("resize", onResize);
-    }, [drawFrame, resize, setOpacity]);
+    }, [ensureSize, scheduleBlend]);
 
-    // Draw when frameIndex prop changes (controlled mode)
-    useEffect(() => {
+    useLayoutEffect(() => {
       if (images.length === 0) return;
-      scheduleDraw(frameIndex);
-    }, [frameIndex, images.length, scheduleDraw]);
+      ensureSize();
+      scheduleBlend(frameIndex, true);
+    }, [frameIndex, images, ensureSize, scheduleBlend]);
 
-    // Cleanup RAF on unmount
     useEffect(() => {
       return () => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);

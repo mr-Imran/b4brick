@@ -36,7 +36,7 @@ export function Brick({ finishIndex, pressProgress, bounceKey, resultTier }: Bri
           aria-hidden="true"
         />
         <Image
-          src="/brick.png"
+          src="/brick.webp"
           alt="BRIK clay brick"
           width={340}
           height={200}

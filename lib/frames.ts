@@ -5,14 +5,14 @@ export const FRAME_COUNT = 102;
 export const FRAMES_BASE_PATH = "/frames";
 
 /** Image file extension for frame assets. */
-export const FRAME_EXTENSION = "png";
+export const FRAME_EXTENSION = "webp";
 
-/** Filename stem for frame assets (e.g. …_000.png). */
+/** Filename stem for frame assets (e.g. …_000.webp). */
 export const FRAME_BASENAME = "Create_an_ultra_realistic_cin_gwr_video_mvp";
 
 /**
  * Returns the public URL for a frame by index (0-based).
- * frame 0 → …_000.png, frame 101 → …_101.png
+ * frame 0 → …_000.webp, frame 101 → …_101.webp
  */
 export function getFramePath(index: number): string {
   const clamped = Math.max(0, Math.min(FRAME_COUNT - 1, index));

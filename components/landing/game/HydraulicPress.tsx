@@ -17,7 +17,7 @@ export function HydraulicPress({ pressProgress, active, vibration }: HydraulicPr
       className="relative mx-auto w-full max-w-[560px]"
     >
       <Image
-        src="/gameasset/watermarked_img_4870786673617299386.png"
+        src="/gameasset/watermarked_img_4870786673617299386.webp"
         alt="Hydraulic press machine"
         width={655}
         height={655}

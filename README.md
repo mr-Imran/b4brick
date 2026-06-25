@@ -112,8 +112,8 @@ b4brick/
 │   ├── frames.ts           # Frame paths, scroll distance, index mapping
 │   └── brand.ts            # Colors, copy, specs, manufacturing steps
 └── public/
-    ├── frames/             # 102 PNG transformation frames
-    ├── brick.png           # Product brick asset
+    ├── frames/             # 102 WebP scroll frames (see Assets below)
+    ├── brick.webp          # Product brick asset
     └── gameasset/          # Game-related images
 ```
 
@@ -126,7 +126,7 @@ b4brick/
 | Constant | Description |
 |----------|-------------|
 | `FRAME_COUNT` | Total frames (102) |
-| `FRAME_BASENAME` | PNG filename stem in `/public/frames/` |
+| `FRAME_BASENAME` | WebP filename stem in `/public/frames/` |
 | `STORY_SCROLL_DISTANCE` | Pixels of scroll for full sequence (lower = faster) |
 | `progressToFrameIndex()` | Maps scroll progress 0–1 → frame index |
 
@@ -140,16 +140,24 @@ b4brick/
 
 ## Assets
 
-Frame files must follow this naming pattern:
+All scroll frames live in **`public/frames/`** (102 files):
 
 ```
-public/frames/Create_an_ultra_realistic_cin_gwr_video_mvp_000.png
-public/frames/Create_an_ultra_realistic_cin_gwr_video_mvp_001.png
+public/frames/Create_an_ultra_realistic_cin_gwr_video_mvp_000.webp
+public/frames/Create_an_ultra_realistic_cin_gwr_video_mvp_001.webp
 …
-public/frames/Create_an_ultra_realistic_cin_gwr_video_mvp_101.png
+public/frames/Create_an_ultra_realistic_cin_gwr_video_mvp_101.webp
 ```
 
-All **102 frames** are preloaded on first visit. Expect a short loading screen on slower connections.
+**First-time setup** (if you have PNG frames):
+
+```bash
+npm run optimize:frames   # converts public/frames/*.png → .webp
+```
+
+**Deploy:** commit all `.webp` files in `public/frames/`. The build runs `verify:frames` and fails if any are missing.
+
+Bootstrap frames (~20) load first (~600 KB); the full sequence is ~3 MB WebP.
 
 ---
 

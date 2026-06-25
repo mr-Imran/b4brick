@@ -312,7 +312,7 @@ export function FootballGame() {
   useEffect(() => {
     setHighScore(loadHighScore());
     const img = new Image();
-    img.src = "/brick.png";
+    img.src = "/brick.webp";
     img.onload = () => {
       brickImgRef.current = img;
     };

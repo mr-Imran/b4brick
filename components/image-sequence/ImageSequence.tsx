@@ -10,9 +10,15 @@ import {
 } from "react";
 import { drawImageCover } from "./drawImageCover";
 import type { ImageSequenceHandle, ImageSequenceProps } from "./types";
+import { isMobileDevice } from "@/lib/device";
 
-const MAX_FRAME_CACHE = 48;
-const MAX_DPR = 1.5;
+function getMaxDpr() {
+  return isMobileDevice() ? 1 : 1.5;
+}
+
+function getMaxCache() {
+  return isMobileDevice() ? 12 : 48;
+}
 
 /**
  * Canvas image sequence with LRU cache + crossfade between adjacent frames.
@@ -52,7 +58,7 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
       const canvas = canvasRef.current;
       if (!canvas) return false;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+      const dpr = Math.min(window.devicePixelRatio || 1, getMaxDpr());
       const width = window.innerWidth;
       const height = window.innerHeight;
       const key = `${width}x${height}@${dpr}`;
@@ -72,7 +78,7 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
       if (ctx) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
+        ctx.imageSmoothingQuality = isMobileDevice() ? "medium" : "high";
       }
 
       clearFrameCache();
@@ -102,7 +108,8 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
         drawImageCover(octx, image, width, height, backgroundColor);
 
         const cache = frameCacheRef.current;
-        if (cache.size >= MAX_FRAME_CACHE) {
+        const maxCache = getMaxCache();
+        if (cache.size >= maxCache) {
           const oldest = cache.keys().next().value;
           if (oldest !== undefined) cache.delete(oldest);
         }
@@ -188,9 +195,11 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
         const i0 = Math.floor(clamped);
         const i1 = Math.min(max, i0 + 1);
         const blend = clamped - i0;
+        const mobile = isMobileDevice();
 
-        if (i0 === i1) {
-          blitFrame(ctx, canvas, i0);
+        if (mobile || i0 === i1) {
+          const snap = mobile && i0 !== i1 ? (blend >= 0.5 ? i1 : i0) : i0;
+          blitFrame(ctx, canvas, snap);
         } else {
           blitFrame(ctx, canvas, i0);
           ctx.globalAlpha = blend;
@@ -200,11 +209,13 @@ export const ImageSequence = forwardRef<ImageSequenceHandle, ImageSequenceProps>
 
         lastPaintedRef.current = clamped;
 
-        if (i0 > 0 && !frameCacheRef.current.has(i0 - 1)) {
-          requestAnimationFrame(() => buildCachedFrame(i0 - 1));
-        }
-        if (i1 < max && !frameCacheRef.current.has(i1 + 1)) {
-          requestAnimationFrame(() => buildCachedFrame(i1 + 1));
+        if (!mobile) {
+          if (i0 > 0 && !frameCacheRef.current.has(i0 - 1)) {
+            requestAnimationFrame(() => buildCachedFrame(i0 - 1));
+          }
+          if (i1 < max && !frameCacheRef.current.has(i1 + 1)) {
+            requestAnimationFrame(() => buildCachedFrame(i1 + 1));
+          }
         }
       },
       [blitFrame, buildCachedFrame, ensureSize, backgroundColor, frameCount, getContext, images.length],

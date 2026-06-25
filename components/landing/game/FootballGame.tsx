@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLenis } from "@/components/smooth-scroll/LenisContext";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   BRICK_H,
   BRICK_W,
@@ -83,6 +85,10 @@ interface TrailPoint {
 export function FootballGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lenis = useLenis();
+  const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
   const engineRef = useRef<Matter.Engine | null>(null);
   const ballRef = useRef<Matter.Body | null>(null);
   const keeperRef = useRef<Matter.Body | null>(null);
@@ -129,8 +135,9 @@ export function FootballGame() {
   }, []);
 
   const spawnLaunchParticles = useCallback((x: number, y: number, nx: number, ny: number) => {
+    const count = isMobileRef.current ? 6 : 14;
     const parts: Particle[] = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < count; i++) {
       const spread = (Math.random() - 0.5) * 1.4;
       parts.push({
         x,
@@ -310,6 +317,26 @@ export function FootballGame() {
   }, [handleMiss, handleGoal]);
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const blockTouchScroll = (e: TouchEvent) => {
+      const phase = phaseRef.current;
+      if (
+        aimRef.current ||
+        phase === "aiming" ||
+        phase === "winding" ||
+        phase === "flying"
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener("touchmove", blockTouchScroll, { passive: false });
+    return () => el.removeEventListener("touchmove", blockTouchScroll);
+  }, []);
+
+  useEffect(() => {
     setHighScore(loadHighScore());
     const img = new Image();
     img.src = "/brick.webp";
@@ -424,7 +451,8 @@ export function FootballGame() {
       if (ball && phaseRef.current === "flying") {
         const trail = trailRef.current;
         trail.push({ x: ball.position.x, y: ball.position.y, angle: ball.angle });
-        if (trail.length > TRAIL_LEN) trail.shift();
+        const maxTrail = isMobileRef.current ? 4 : TRAIL_LEN;
+        if (trail.length > maxTrail) trail.shift();
 
         if (
           !scoredShotRef.current &&
@@ -458,7 +486,8 @@ export function FootballGame() {
       if (ball && phaseRef.current === "goal") {
         const trail = trailRef.current;
         trail.push({ x: ball.position.x, y: ball.position.y, angle: ball.angle });
-        if (trail.length > TRAIL_LEN) trail.shift();
+        const maxTrail = isMobileRef.current ? 4 : TRAIL_LEN;
+        if (trail.length > maxTrail) trail.shift();
       }
 
       particlesRef.current = particlesRef.current
@@ -537,8 +566,10 @@ export function FootballGame() {
         const kx = keeper.position.x * s;
         const ky = keeper.position.y * s;
         ctx.fillStyle = "#ffd28a";
-        ctx.shadowColor = "#ff5f00";
-        ctx.shadowBlur = 12;
+        if (!isMobileRef.current) {
+          ctx.shadowColor = "#ff5f00";
+          ctx.shadowBlur = 12;
+        }
         ctx.fillRect(kx - 28 * s, ky - 7 * s, 56 * s, 14 * s);
         ctx.shadowBlur = 0;
       }
@@ -551,9 +582,12 @@ export function FootballGame() {
         ctx.fill();
       }
 
+      const trailCap = isMobileRef.current ? 4 : TRAIL_LEN;
+
       if (ball && (phaseRef.current === "flying" || phaseRef.current === "goal")) {
         const trail = trailRef.current;
         for (let i = 0; i < trail.length - 1; i++) {
+          if (i < trail.length - trailCap) continue;
           const pt = trail[i];
           const alpha = (i + 1) / trail.length * 0.35;
           drawBrickSprite(ctx, pt.x * s, pt.y * s, pt.angle, s, brickImgRef.current, {
@@ -575,8 +609,10 @@ export function FootballGame() {
           phaseRef.current === "aiming" || phaseRef.current === "winding" ? aimTiltRef.current : 0;
         const drawAngle = ball.angle + extraTilt;
         const glowing =
-          phaseRef.current === "winding" ||
-          ((phaseRef.current === "flying" || phaseRef.current === "goal") && speed > 4);
+          !isMobileRef.current &&
+          (phaseRef.current === "winding" ||
+            ((phaseRef.current === "flying" || phaseRef.current === "goal") &&
+              speed > 4));
 
         drawBrickSprite(ctx, bx * s, by * s, drawAngle, s, brickImgRef.current, {
           stretch,
@@ -653,6 +689,8 @@ export function FootballGame() {
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (phaseRef.current !== "aiming") return;
+      e.preventDefault();
+      lenis?.stop();
       const p = pointerToField(e.clientX, e.clientY);
       const aim = {
         startX: FIELD_W / 2,
@@ -661,29 +699,36 @@ export function FootballGame() {
         currentY: p.y,
       };
       aimRef.current = aim;
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+      const target = e.currentTarget as HTMLElement;
+      target.setPointerCapture(e.pointerId);
     },
-    [pointerToField],
+    [lenis, pointerToField],
   );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!aimRef.current || phaseRef.current !== "aiming") return;
+      e.preventDefault();
       const p = pointerToField(e.clientX, e.clientY);
       aimRef.current = { ...aimRef.current, currentX: p.x, currentY: p.y };
     },
     [pointerToField],
   );
 
-  const onPointerUp = useCallback(() => {
+  const releaseAim = useCallback(() => {
+    lenis?.start();
+
     const aim = aimRef.current;
     if (!aim || phaseRef.current !== "aiming") return;
     aimRef.current = null;
 
+    const minDrag = isMobileRef.current ? 5 : MIN_DRAG;
+    const maxDrag = isMobileRef.current ? 88 : MAX_DRAG;
+
     const dx = aim.startX - aim.currentX;
     const dy = aim.startY - aim.currentY;
-    const power = clamp(Math.hypot(dx, dy), MIN_DRAG, MAX_DRAG);
-    if (power < MIN_DRAG) return;
+    const power = clamp(Math.hypot(dx, dy), minDrag, maxDrag);
+    if (power < minDrag) return;
 
     const ball = ballRef.current;
     if (!ball) return;
@@ -704,10 +749,23 @@ export function FootballGame() {
 
     setShotsLeft((s) => Math.max(0, s - 1));
     setPhaseSafe("winding");
-  }, [setPhaseSafe]);
+  }, [lenis, setPhaseSafe]);
+
+  const onPointerUp = useCallback(() => {
+    releaseAim();
+  }, [releaseAim]);
+
+  const onPointerCancel = useCallback(() => {
+    aimRef.current = null;
+    lenis?.start();
+  }, [lenis]);
 
   return (
-    <div className="overflow-hidden rounded-[calc(2rem-2px)] bg-[#050505] select-none">
+    <div
+      className="overflow-hidden rounded-[calc(2rem-2px)] bg-[#050505] select-none"
+      data-lenis-prevent
+      data-game-zone
+    >
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-4 py-3 md:px-6">
         <div className="flex gap-6 md:gap-10">
           <Stat label="Score" value={String(score)} accent />
@@ -725,18 +783,28 @@ export function FootballGame() {
           Kick the Brick. Score the Goal.
         </h3>
         <p className="mt-2 text-sm text-[#bdbdbd]">
-          Short drag back from the brick, then release. A small pull is enough to shoot.
+          {isMobile
+            ? "Touch the pitch, drag back from the brick, then release to shoot."
+            : "Short drag back from the brick, then release. A small pull is enough to shoot."}
         </p>
 
         <div
           ref={containerRef}
+          data-lenis-prevent
+          data-game-zone
           className="relative mt-6 aspect-[720/520] w-full overflow-hidden rounded-2xl border border-white/10 touch-none"
+          style={{ touchAction: "none" }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
+          onPointerCancel={onPointerCancel}
         >
-          <canvas ref={canvasRef} className="block h-full w-full cursor-crosshair" />
+          <canvas
+            ref={canvasRef}
+            className="block h-full w-full touch-none"
+            style={{ touchAction: "none" }}
+          />
         </div>
 
         <AnimatePresence>

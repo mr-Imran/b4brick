@@ -1,7 +1,6 @@
 "use client";
 
-import { AnimatedGradientBg } from "@/components/ui/AnimatedGradientBg";
-import { FlameEffect } from "@/components/ui/FlameEffect";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /** Pre-generated particle layout — stable across renders. */
 const PARTICLES = Array.from({ length: 28 }, (_, i) => ({
@@ -15,38 +14,49 @@ const PARTICLES = Array.from({ length: 28 }, (_, i) => ({
 }));
 
 /**
- * Cinematic atmosphere — animated gradients, flames, dust, volumetric light.
+ * Cinematic atmosphere — lighter on mobile for scroll FPS.
  */
 export function HeroAmbience() {
+  const isMobile = useIsMobile();
+  const particles = isMobile ? PARTICLES.slice(0, 8) : PARTICLES;
+
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       <div className="absolute inset-0 bg-[#050505]" />
-      <AnimatedGradientBg variant="cinematic" />
 
-      {/* Soft volumetric light */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `
-            radial-gradient(ellipse 70% 55% at 50% 35%, rgba(255,248,240,0.09) 0%, transparent 65%),
-            radial-gradient(ellipse 40% 30% at 15% 65%, rgba(255,255,255,0.05) 0%, transparent 60%),
-            radial-gradient(ellipse 35% 25% at 85% 20%, rgba(255,95,0,0.07) 0%, transparent 55%)
-          `,
-        }}
-      />
+      {!isMobile && (
+        <>
+          <div
+            className="absolute inset-0 opacity-80"
+            style={{
+              background: `
+                radial-gradient(ellipse 70% 55% at 50% 35%, rgba(255,248,240,0.09) 0%, transparent 65%),
+                radial-gradient(ellipse 40% 30% at 15% 65%, rgba(255,255,255,0.05) 0%, transparent 60%),
+                radial-gradient(ellipse 35% 25% at 85% 20%, rgba(255,95,0,0.07) 0%, transparent 55%)
+              `,
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 120% 80% at 50% 120%, transparent 35%, rgba(0,0,0,0.6) 100%)",
+            }}
+          />
+        </>
+      )}
 
-      {/* Bottom vignette */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 120% 80% at 50% 120%, transparent 35%, rgba(0,0,0,0.6) 100%)",
-        }}
-      />
+      {isMobile && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(255,95,0,0.06) 0%, transparent 70%)",
+          }}
+        />
+      )}
 
-      <FlameEffect intensity="subtle" />
-
-      {PARTICLES.map((p) => (
+      {particles.map((p) => (
         <span
           key={p.id}
           className="hero-dust absolute rounded-full bg-white"

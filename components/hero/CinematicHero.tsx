@@ -4,6 +4,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   ImageSequence,
   useImagePreloader,
@@ -77,6 +78,10 @@ export function CinematicHero() {
 
   const { isLoading, isReady, isFullyLoaded, progress, error, images } =
     useImagePreloader(ALL_FRAME_PATHS);
+
+  const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
 
   const [isLandingVisible, setIsLandingVisible] = useState(false);
   const landingTriggeredRef = useRef(false);
@@ -165,7 +170,11 @@ export function CinematicHero() {
 
           if (combinedOpacity > 0.01) {
             setCanvasVisible(canvasWrapper, true);
-            sequence.drawFrameBlend(framePos);
+            if (isMobileRef.current) {
+              sequence.drawFrame(Math.round(framePos));
+            } else {
+              sequence.drawFrameBlend(framePos);
+            }
             currentFrameRef.current = Math.round(framePos);
 
             const storyTailFade = segmentProgress(story, 0.75, 1);

@@ -9,7 +9,9 @@
     "lint": "eslint",
     "optimize:images": "node scripts/optimize-images.mjs",
     "optimize:frames": "node scripts/optimize-frames.mjs",
-    "verify:frames": "node scripts/verify-frames.mjs"
+    "verify:frames": "node scripts/verify-frames.mjs",
+    "screenshots:pitch": "node scripts/capture-pitch-screenshots.mjs",
+    "screenshots:collage": "node scripts/build-pitch-collage.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -33,6 +35,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "playwright": "^1.61.1",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5"

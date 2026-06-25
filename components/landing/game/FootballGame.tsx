@@ -317,6 +317,7 @@ export function FootballGame() {
   }, [handleMiss, handleGoal]);
 
   useEffect(() => {
+    if (!isMobile) return;
     const el = containerRef.current;
     if (!el) return;
 
@@ -334,7 +335,7 @@ export function FootballGame() {
 
     el.addEventListener("touchmove", blockTouchScroll, { passive: false });
     return () => el.removeEventListener("touchmove", blockTouchScroll);
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     setHighScore(loadHighScore());
@@ -689,8 +690,10 @@ export function FootballGame() {
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (phaseRef.current !== "aiming") return;
-      e.preventDefault();
-      lenis?.stop();
+      if (isMobileRef.current) {
+        e.preventDefault();
+        lenis?.stop();
+      }
       const p = pointerToField(e.clientX, e.clientY);
       const aim = {
         startX: FIELD_W / 2,
@@ -708,7 +711,7 @@ export function FootballGame() {
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!aimRef.current || phaseRef.current !== "aiming") return;
-      e.preventDefault();
+      if (isMobileRef.current) e.preventDefault();
       const p = pointerToField(e.clientX, e.clientY);
       aimRef.current = { ...aimRef.current, currentX: p.x, currentY: p.y };
     },
@@ -716,7 +719,7 @@ export function FootballGame() {
   );
 
   const releaseAim = useCallback(() => {
-    lenis?.start();
+    if (isMobileRef.current) lenis?.start();
 
     const aim = aimRef.current;
     if (!aim || phaseRef.current !== "aiming") return;
@@ -757,15 +760,11 @@ export function FootballGame() {
 
   const onPointerCancel = useCallback(() => {
     aimRef.current = null;
-    lenis?.start();
+    if (isMobileRef.current) lenis?.start();
   }, [lenis]);
 
   return (
-    <div
-      className="overflow-hidden rounded-[calc(2rem-2px)] bg-[#050505] select-none"
-      data-lenis-prevent
-      data-game-zone
-    >
+    <div className="overflow-hidden rounded-[calc(2rem-2px)] bg-[#050505] select-none">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-4 py-3 md:px-6">
         <div className="flex gap-6 md:gap-10">
           <Stat label="Score" value={String(score)} accent />
@@ -790,10 +789,9 @@ export function FootballGame() {
 
         <div
           ref={containerRef}
-          data-lenis-prevent
-          data-game-zone
+          {...(isMobile ? { "data-lenis-prevent": true, "data-game-zone": true } : {})}
           className="relative mt-6 aspect-[720/520] w-full overflow-hidden rounded-2xl border border-white/10 touch-none"
-          style={{ touchAction: "none" }}
+          style={isMobile ? { touchAction: "none" } : undefined}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -802,8 +800,8 @@ export function FootballGame() {
         >
           <canvas
             ref={canvasRef}
-            className="block h-full w-full touch-none"
-            style={{ touchAction: "none" }}
+            className="block h-full w-full cursor-crosshair"
+            style={isMobile ? { touchAction: "none" } : undefined}
           />
         </div>
 

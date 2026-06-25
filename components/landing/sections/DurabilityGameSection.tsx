@@ -73,7 +73,6 @@ export function DurabilityGameSection() {
       id="durability-lab"
       className="relative overflow-hidden px-6 py-36 md:px-12 md:py-48 lg:px-20"
       aria-labelledby="brik-strike-heading"
-      data-lenis-prevent
     >
       <div className="section-line absolute inset-x-0 top-0" />
 

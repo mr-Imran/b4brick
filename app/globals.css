@@ -39,14 +39,19 @@ html.lenis body {
 
 .lenis.lenis-smooth [data-lenis-prevent] {
   overscroll-behavior: contain;
-  touch-action: none;
 }
 
-[data-game-zone] {
-  touch-action: none;
-  overscroll-behavior: none;
-  -webkit-user-select: none;
-  user-select: none;
+@media (pointer: coarse) {
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    touch-action: none;
+  }
+
+  [data-game-zone] {
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 .lenis.lenis-stopped {
